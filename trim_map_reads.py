@@ -1,14 +1,16 @@
 import os, sys, glob, argparse
 
 def init():
-	parser = argparse.ArgumentParser(description='Trim and map sequencing reads from putative Horizontal Chromsome Transfer strains to the acceptor and donor genomes to identify which genomic regions have been transferred')
-	parser.add_argument('task', type=str, choices = ['all','trim', 'map2acceptor', 'mapall2donor', 'extractUnmappedReads','map2donor'], default = 'all', help='which step has to be performed')
+	parser = argparse.ArgumentParser(description='Trim and map sequencing reads, using fastq-mcf for trimming (and quality filtering -q 20) and bowtie2 for mapping. Dependencies: fastq-mcf, bowtie2, samtools')
+	parser.add_argument('task', type=str, choices = ['all','trim', 'map', 'extractUnmappedReads','extractReadWithUnmappedMate'], default = 'all', help='which step has to be performed')
 	parser.add_argument('-v', dest='verbose', action = 'store_true', default = True, help='print messages')
-	parser.add_argument('-readDir', dest='readDir', type=str, help='name of the directory with fastq or fastq.gz files')
-	parser.add_argument('-outDir', dest='outDir', type=str, help='name of the output directory, output will be put in outDir/01.Trimming/, outDir/02.MappingToAcceptor/, outDir/03.UnmappedReads/, outDir/04.MappingToDonor/')
+	parser.add_argument('-readDir', dest='readDir', type=str, help='name of the directory, it is assumed this fdirectory contains two subdirs -R1 and R2- that contain the .fastq or fastq.gz files with the reads.\
+	 Filenames may end with .fastq or .fq')
+	parser.add_argument('-outDir', dest='outDir', type=str, help='name of the output directory, output will be put in outDir/01.Trimming/, \
+		outDir/02.Mapping/refName (see -refName option), outDir/03a.UnmappedReads/, outDir/03b.MappedReadsWithUnmappedMates/')
 	parser.add_argument('-adapterFasta', dest='adapterFasta', type=str, help='fastafile with adapter sequences')
-	parser.add_argument('-donorFasta', dest='donorFasta', type=str, help='fastafile with the genome of the donor strain')
-	parser.add_argument('-acceptorFasta', dest='acceptorFasta', type=str, help='fastafile with the genome of the acceptor strain')
+	parser.add_argument('-refFasta', dest='refFasta', type=str, help='fastafile with the sequences to which we want to map the reads')
+	parser.add_argument('-refName', dest='refName', type=str, help='name of the reference set of sequence we map to')
 	parser.add_argument('-nCPU', dest='nCPU', type=str, default = '10', help='number of CPUs to use during mapping')
 	parser.add_argument('-I', dest='minInsertSize', type=str, default = '200', help='lower bound of insert size of read library (-I in bowtie2)')
 	parser.add_argument('-X', dest='maxInsertSize', type=str, default = '700', help='upper bound of insert size of read library (-X in bowtie2)')
@@ -35,9 +37,9 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 	cmnd = ''
 	failInTotal = 0
 	cmnds       = []
-	for fastq_R1 in glob.glob(dirname_read_data+'/*_R1_*.fastq') + glob.glob(dirname_read_data+'/*_R1_*.fq'):
+	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):
 
-		fastq_R2   = fastq_R1.replace('_R1_', '_R2_')
+		fastq_R2   = fastq_R1.replace('/R1/', '/R2/')
 		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
 		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
 
