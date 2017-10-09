@@ -10,7 +10,7 @@ def init():
 		outDir/02.Mapping/refName (see -refName option), outDir/03a.UnmappedReads/, outDir/03b.MappedReadsWithUnmappedMates/')
 	parser.add_argument('-adapterFasta', dest='adapterFasta', type=str, help='fastafile with adapter sequences')
 	parser.add_argument('-transposonFasta', dest='transposonFasta', type=str, help='fastafile with the transposon sequences to which we want to map the reads')
-	parser.add_argument('-refFasta', dest='refName', type=str, help='fastafile with reference genome to map to')
+	parser.add_argument('-genomeFasta', dest='refName', type=str, help='fastafile with genome to map to')
 	parser.add_argument('-nCPU', dest='nCPU', type=str, default = '10', help='number of CPUs to use during mapping')
 	parser.add_argument('-I', dest='minInsertSize', type=str, default = '200', help='lower bound of insert size of read library (-I in bowtie2)')
 	parser.add_argument('-X', dest='maxInsertSize', type=str, default = '700', help='upper bound of insert size of read library (-X in bowtie2)')
@@ -37,11 +37,11 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 	cmnd = ''
 	failInTotal = 0
 	cmnds       = []
-	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):
+	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):  #Is it necessary to also put .gz at the endings here? Will it even accept .gz files?
 
 		fastq_R2   = fastq_R1.replace('/R1/', '/R2/')
-		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
-		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
+		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')  # and here also .gz?
+		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')  # and here?
 
 		if verbose:
 			print fastq_R1
@@ -69,9 +69,9 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 
 def mapReads(fasta, dirname_read_data, outdirname, I, X, matePair, nCPU, verbose):
 
-	base_cmnd = 'bowtie2 -x '+fasta+' --end-to-end'
+	base_cmnd = 'bowtie2 -x '+fasta #+' --end-to-end'   We do not want it for mapping to transposons but we do for mapping to genome? 
 	if matePair:
-		base_cmnd += ' --rf'
+		base_cmnd += ' --rf'   # Is our data --rf or --fr?
 	else: base_cmnd += ' --fr'
 
 	base_cmnd += ' -p '+nCPU
@@ -79,7 +79,7 @@ def mapReads(fasta, dirname_read_data, outdirname, I, X, matePair, nCPU, verbose
 
 	failInTotal = 0
 	cmnds       = []
-	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):
+	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):   #.gz thing again
 		fastq_R2 = fastq_R1.replace('/R1/', '/R2/')
 
 		if verbose:
@@ -118,7 +118,7 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 		fail   = 0
 		unmapped_bams = []
 		unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.unmapped_matemapped.bam')
-		cmnd   = 'samtools view -bf 4 -F264 '+bam_fname+' > '+ unmapped_bam
+		cmnd   = 'samtools view -bf 4 -F264 '+bam_fname+' > '+ unmapped_bam   # I cannot find the -bf option anywhere..? I can find -b and -f, but I don't see the possibility to combine them?
 
 		if verbose:
 			print '\nExtract unmapped reads for '+bam_fname+':'
@@ -129,28 +129,28 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 		else:
 			unmapped_bams.append(unmapped_bam)
 			unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.mapped_mateunmapped.bam') 
-			cmnd = 'samtools view -bf 8 -F260 '+bam_fname+' > '+unmapped_bam
+			cmnd = 'samtools view -bf 8 -F260 '+bam_fname+' > '+unmapped_bam   # -bf option again. (For Valerie: Also check the -F260 option more thoroughly.)
 			if verbose:
 				print cmnd
 			fail = os.system(cmnd)
 			if fail != 0:
 				print 'Command failed, skipping....'
-			else:
-				unmapped_bams.append(unmapped_bam)
-				unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.both_mates_unmapped')
-				cmnd = 'samtools view -bf 12 -F256 '+bam_fname+' > '+unmapped_bam
-				if verbose: 
-					print cmnd
-				fail = os.system(cmnd)
-				if fail != 0:
-					print 'Command failed, skipping....'
-				else:
-					unmapped_bams.append(unmapped_bam)
+#			else:
+#				unmapped_bams.append(unmapped_bam)
+#				unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.both_mates_unmapped')
+#				cmnd = 'samtools view -bf 12 -F256 '+bam_fname+' > '+unmapped_bam   # -bf option again
+#				if verbose: 
+#					print cmnd
+#				fail = os.system(cmnd)
+#				if fail != 0:
+#					print 'Command failed, skipping....'
+#				else:
+#					unmapped_bams.append(unmapped_bam)
 
 		if fail != 0:
 			failInTotal += 1
 		else:
-			print '\n\nSort 3 classes of unmapped reads and merge into a single file...'
+			print '\n\nSort 2 classes of halfmapped read-pairs and merge into a single file...'
 			for unmapped_bam in unmapped_bams:
 				cmnd = 'samtools sort -n '+unmapped_bam+' '+unmapped_bam.replace('.bam', '.sorted')
 				fail += os.system(cmnd)
@@ -158,11 +158,11 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 				failInTotal += 1
 				print cmnd, ' Failed'
 			else:
-				merged_unmapped_bam_fname = outdirname+bam_fname.split('/')[-1].replace('.bam', '.UNMAPPED.bam')
+				merged_unmapped_bam_fname = outdirname+bam_fname.split('/')[-1].replace('.bam', '.HALFMAPPED.bam')
 				cmnd = 'samtools merge -f -n '+ merged_unmapped_bam_fname
 				for unmapped_bam in unmapped_bams:
 					cmnd += ' '+unmapped_bam.replace('.bam', '.sorted.bam')
-				cmnd += ' >& '+merged_unmapped_bam_fname.replace('.UNMAPPED.bam', '.MERGE.LOG')
+				cmnd += ' >& '+merged_unmapped_bam_fname.replace('.HALFMAPPED.bam', '.MERGE.LOG')
 
 				if verbose: 
 					print cmnd
@@ -172,9 +172,9 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 					print cmnd, ' Failed'
 				else:
 					cmnd = "bedtools bamtofastq -i "+merged_unmapped_bam_fname
-					cmnd +=' -fq '+merged_unmapped_bam_fname.replace('.bam', '_R1_.fastq')
-					cmnd +=' -fq2 '+merged_unmapped_bam_fname.replace('.bam', '_R2_.fastq')
-					cmnd +=' >& '+merged_unmapped_bam_fname.replace('.UNMAPPED.bam', '.BAM2FASTQ.LOG')
+					cmnd +=' -fq '+merged_unmapped_bam_fname.replace('.bam', '_R1.fastq')
+					cmnd +=' -fq2 '+merged_unmapped_bam_fname.replace('.bam', '_R2.fastq')
+					cmnd +=' >& '+merged_unmapped_bam_fname.replace('.HALFMAPPED.bam', '.BAM2FASTQ.LOG')
 					if verbose: 
 						print cmnd
 					fail = os.system(cmnd)
@@ -235,9 +235,9 @@ if __name__ == "__main__":
 #
 #		print mapReads(args.donorFasta, trimOutDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
 
-	if can_savely_continue and (args.task == 'extractUnmappedReads' or args.task == 'all'):
+	if can_savely_continue and (args.task == 'extractReadWithUnmappedMate' or args.task == 'all'):
 		if args.verbose:
-			print '\n\nWill extract unmappedreads from bamfiles in ', readDir
+			print '\n\nWill extract reads with unmapped mates from bamfiles in ', readDir
 
 		unmappedOutDir = args.outDir+'/03.UnmappedReads/'
 		os.system('mkdir -p '+args.outDir)
@@ -247,15 +247,15 @@ if __name__ == "__main__":
 			readDir = unmappedOutDir
 		else: can_savely_continue = False
 
-	if can_savely_continue and (args.task == 'map2donor' or args.task == 'all'):
+	if can_savely_continue and (args.task == 'map2genome' or args.task == 'all'):
 		if args.verbose:
-			print '\n\nWill map reads in', readDir, 'to', args.acceptorFasta
-		mapOutDir = args.outDir+'/04.MappingToDonor/'
+			print '\n\nWill map reads in', readDir, 'to', args.genomeFasta
+		mapOutDir = args.outDir+'/04.MappingToGenome/'
 		os.system('mkdir -p '+args.outDir)
 		os.system('mkdir -p '+mapOutDir)
 
-		if len(glob.glob(args.donorFasta+'*.bt2')) == 0:
-			os.system('bowtie2-build '+args.donorFasta+' '+args.donorFasta)
+		if len(glob.glob(args.genomeFasta+'*.bt2')) == 0:
+			os.system('bowtie2-build '+args.genomeFasta+' '+args.genomeFasta)
 
-		print mapReads(args.donorFasta, readDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
+		print mapReads(args.genomeFasta, readDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
 			
