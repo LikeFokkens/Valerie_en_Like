@@ -79,13 +79,13 @@ def mapReads(fasta, dirname_read_data, outdirname, I, X, matePair, nCPU, verbose
 
 	failInTotal = 0
 	cmnds       = []
-	for fastq_R1 in glob.glob(dirname_read_data+'/*_R1_*.fastq') + glob.glob(dirname_read_data+'/*_R1_*.fq'):
-		fastq_R2 = fastq_R1.replace('_R1_', '_R2_')
+	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):
+		fastq_R2 = fastq_R1.replace('/R1/', '/R2/')
 
 		if verbose:
 			print "Will map reads from", fastq_R1, 'and', fastq_R2, 'to', fasta
 
-		outfile_base = outdirname+fastq_R1.split('/')[-1].replace('_R1_', '_')+'__mapped2__'+fasta.split('/')[-1].split('.fa')[0]+'.bowtie2_I'+I+'X'+X
+		outfile_base = outdirname+fastq_R1.split('/')[-1].replace('_R1', '_')+'__mapped2__'+fasta.split('/')[-1].split('.fa')[0]+'.bowtie2_I'+I+'X'+X
 		if matePair: outfile_base+='-rf'
 
 		if not os.path.exists(outfile_base+'.bam'):
