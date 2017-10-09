@@ -2,15 +2,15 @@ import os, sys, glob, argparse
 
 def init():
 	parser = argparse.ArgumentParser(description='Trim and map sequencing reads, using fastq-mcf for trimming (and quality filtering -q 20) and bowtie2 for mapping. Dependencies: fastq-mcf, bowtie2, samtools')
-	parser.add_argument('task', type=str, choices = ['all','trim', 'map', 'extractUnmappedReads','extractReadWithUnmappedMate'], default = 'all', help='which step has to be performed')
+	parser.add_argument('task', type=str, choices = ['all','trim', 'map2transposons', 'extractReadWithUnmappedMate','map2genome'], default = 'all', help='which step has to be performed')
 	parser.add_argument('-v', dest='verbose', action = 'store_true', default = True, help='print messages')
 	parser.add_argument('-readDir', dest='readDir', type=str, help='name of the directory, it is assumed this fdirectory contains two subdirs -R1 and R2- that contain the .fastq or fastq.gz files with the reads.\
 	 Filenames may end with .fastq or .fq')
 	parser.add_argument('-outDir', dest='outDir', type=str, help='name of the output directory, output will be put in outDir/01.Trimming/, \
 		outDir/02.Mapping/refName (see -refName option), outDir/03a.UnmappedReads/, outDir/03b.MappedReadsWithUnmappedMates/')
 	parser.add_argument('-adapterFasta', dest='adapterFasta', type=str, help='fastafile with adapter sequences')
-	parser.add_argument('-refFasta', dest='refFasta', type=str, help='fastafile with the sequences to which we want to map the reads')
-	parser.add_argument('-refName', dest='refName', type=str, help='name of the reference set of sequence we map to')
+	parser.add_argument('-transposonFasta', dest='transposonFasta', type=str, help='fastafile with the transposon sequences to which we want to map the reads')
+	parser.add_argument('-refFasta', dest='refName', type=str, help='fastafile with reference genome to map to')
 	parser.add_argument('-nCPU', dest='nCPU', type=str, default = '10', help='number of CPUs to use during mapping')
 	parser.add_argument('-I', dest='minInsertSize', type=str, default = '200', help='lower bound of insert size of read library (-I in bowtie2)')
 	parser.add_argument('-X', dest='maxInsertSize', type=str, default = '700', help='upper bound of insert size of read library (-X in bowtie2)')
@@ -207,33 +207,33 @@ if __name__ == "__main__":
 			readDir = trimOutDir
 		else: can_savely_continue = False
 
-	if can_savely_continue and (args.task == 'map2acceptor' or args.task == 'all'):
+	if can_savely_continue and (args.task == 'map2transposons' or args.task == 'all'):
 		if args.verbose:
-			print '\n\nWill map reads in', readDir, 'to', args.acceptorFasta
+			print '\n\nWill map reads in', readDir, 'to', args.transposonFasta
 
-		mapOutDir = args.outDir+'/02.MappingToAcceptor/'
+		mapOutDir = args.outDir+'/02.MappingToTransposons/'
 		os.system('mkdir -p '+args.outDir)
 		os.system('mkdir -p '+mapOutDir)
-		if len(glob.glob(args.acceptorFasta+'*.bt2')) == 0:
-			os.system('bowtie2-build '+args.acceptorFasta+' '+args.acceptorFasta)
+		if len(glob.glob(args.transposonFasta+'*.bt2')) == 0:
+			os.system('bowtie2-build '+args.transposonFasta+' '+args.transposonFasta)
 
-		if mapReads(args.acceptorFasta, readDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose) == 0:
+		if mapReads(args.transposonFasta, readDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose) == 0:
 			readDir = mapOutDir
 		else: can_savely_continue = False
 
-	if can_savely_continue and (args.task == 'mapall2donor' or args.task == 'all'):
-		if args.verbose:
-			print '\n\nWill map reads in', trimOutDir, 'to', args.donorFasta
-
-		if len(glob.glob(args.donorFasta+'*.bt2')) == 0:
-			cmnd = 'bowtie2-build '+args.donorFasta+' '+args.donorFasta
-			print cmnd, os.system(cmnd)
-
-		mapOutDir = args.outDir+'/02a.MappingAllReadsToDonor/'
-		os.system('mkdir -p '+args.outDir)
-		os.system('mkdir -p '+mapOutDir)
-
-		print mapReads(args.donorFasta, trimOutDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
+#	if can_savely_continue and (args.task == 'mapall2donor' or args.task == 'all'):
+#		if args.verbose:
+#			print '\n\nWill map reads in', trimOutDir, 'to', args.donorFasta
+#
+#		if len(glob.glob(args.donorFasta+'*.bt2')) == 0:
+#			cmnd = 'bowtie2-build '+args.donorFasta+' '+args.donorFasta
+#			print cmnd, os.system(cmnd)
+#
+#		mapOutDir = args.outDir+'/02a.MappingAllReadsToDonor/'
+#		os.system('mkdir -p '+args.outDir)
+#		os.system('mkdir -p '+mapOutDir)
+#
+#		print mapReads(args.donorFasta, trimOutDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
 
 	if can_savely_continue and (args.task == 'extractUnmappedReads' or args.task == 'all'):
 		if args.verbose:
