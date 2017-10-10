@@ -39,7 +39,7 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 	cmnds       = []
 	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*'):
 
-		fastq_R2   = fastq_R1.replace('/R1/', '/R2/')
+		fastq_R2   = fastq_R1.replace('/R1/', '/R2/').replace('_R1','_R2')
 		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
 		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
 
@@ -52,7 +52,7 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 			print trimmed_R2
 
 		if not os.path.exists(trimmed_R1) or not os.path.exists(trimmed_R2):
-			cmnd = trimmer+'fastq-mcf -q 20 -o '+trimmed_R1+' -o'+trimmed_R2+' '+adapterfasta+' '+fastq_R1+' '+fastq_R2 +' >& '+trimmed_R1.replace('_R1_', '_')+'.TRIM.LOG'
+			cmnd = trimmer+'fastq-mcf -q 20 -o '+trimmed_R1+' -o '+trimmed_R2+' '+adapterfasta+' '+fastq_R1+' '+fastq_R2 +' >& '+trimmed_R1.replace('_R1', '_')+'.TRIM.LOG'
 			cmnds.append(cmnd)
 			print cmnd
 			fail = os.system(cmnd)
