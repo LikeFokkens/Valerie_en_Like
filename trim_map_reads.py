@@ -2,7 +2,7 @@ import os, sys, glob, argparse
 
 def init():
 	parser = argparse.ArgumentParser(description='Trim and map sequencing reads, using fastq-mcf for trimming (and quality filtering -q 20) and bowtie2 for mapping. Dependencies: fastq-mcf, bowtie2, samtools')
-	parser.add_argument('task', type=str, choices = ['all','trim', 'map2transposons', 'extractReadWithUnmappedMate','map2genome'], default = 'all', help='which step has to be performed')
+	parser.add_argument('task', type=str, choices = ['all','trim', 'map2transposons', 'extractUnmappedReadWithMappedMate','map2genome'], default = 'all', help='which step has to be performed')
 	parser.add_argument('-v', dest='verbose', action = 'store_true', default = True, help='print messages')
 	parser.add_argument('-readDir', dest='readDir', type=str, help='name of the directory, it is assumed this fdirectory contains two subdirs -R1 and R2- that contain the .fastq or fastq.gz files with the reads.\
 	 Filenames may end with .fastq or .fq')
@@ -37,11 +37,11 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 	cmnd = ''
 	failInTotal = 0
 	cmnds       = []
-	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):  #Is it necessary to also put .gz at the endings here? Will it even accept .gz files?
+	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*'):
 
 		fastq_R2   = fastq_R1.replace('/R1/', '/R2/')
-		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')  # and here also .gz?
-		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')  # and here?
+		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
+		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
 
 		if verbose:
 			print fastq_R1
@@ -69,9 +69,9 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 
 def mapReads(fasta, dirname_read_data, outdirname, I, X, matePair, nCPU, verbose):
 
-	base_cmnd = 'bowtie2 -x '+fasta #+' --end-to-end'   We do not want it for mapping to transposons but we do for mapping to genome? 
+	base_cmnd = 'bowtie2 -x '+fasta+' --end-to-end'
 	if matePair:
-		base_cmnd += ' --rf'   # Is our data --rf or --fr?
+		base_cmnd += ' --rf'
 	else: base_cmnd += ' --fr'
 
 	base_cmnd += ' -p '+nCPU
@@ -79,7 +79,7 @@ def mapReads(fasta, dirname_read_data, outdirname, I, X, matePair, nCPU, verbose
 
 	failInTotal = 0
 	cmnds       = []
-	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*.fastq') + glob.glob(dirname_read_data+'/R1/*.fq'):   #.gz thing again
+	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*'):
 		fastq_R2 = fastq_R1.replace('/R1/', '/R2/')
 
 		if verbose:
@@ -118,7 +118,7 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 		fail   = 0
 		unmapped_bams = []
 		unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.unmapped_matemapped.bam')
-		cmnd   = 'samtools view -bf 4 -F264 '+bam_fname+' > '+ unmapped_bam   # I cannot find the -bf option anywhere..? I can find -b and -f, but I don't see the possibility to combine them?
+		cmnd   = 'samtools view -b -f 4 -F264 '+bam_fname+' > '+ unmapped_bam 
 
 		if verbose:
 			print '\nExtract unmapped reads for '+bam_fname+':'
@@ -126,15 +126,15 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 		fail = os.system(cmnd)
 		if fail != 0:
 			print 'Command failed, skipping....'
-		else:
-			unmapped_bams.append(unmapped_bam)
-			unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.mapped_mateunmapped.bam') 
-			cmnd = 'samtools view -bf 8 -F260 '+bam_fname+' > '+unmapped_bam   # -bf option again. (For Valerie: Also check the -F260 option more thoroughly.)
-			if verbose:
-				print cmnd
-			fail = os.system(cmnd)
-			if fail != 0:
-				print 'Command failed, skipping....'
+#		else:
+#			unmapped_bams.append(unmapped_bam)
+#			unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.mapped_mateunmapped.bam') 
+#			cmnd = 'samtools view -b -f 8 -F260 '+bam_fname+' > '+unmapped_bam  
+#			if verbose:
+#				print cmnd
+#			fail = os.system(cmnd)
+#			if fail != 0:
+#				print 'Command failed, skipping....'
 #			else:
 #				unmapped_bams.append(unmapped_bam)
 #				unmapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.both_mates_unmapped')
@@ -150,37 +150,37 @@ def extractUnmappedReads(dirname_read_data, outdirname, verbose):
 		if fail != 0:
 			failInTotal += 1
 		else:
-			print '\n\nSort 2 classes of halfmapped read-pairs and merge into a single file...'
+			print '\n\nSorting unmapped reads that have mapped mates...'
 			for unmapped_bam in unmapped_bams:
 				cmnd = 'samtools sort -n '+unmapped_bam+' '+unmapped_bam.replace('.bam', '.sorted')
 				fail += os.system(cmnd)
 			if fail != 0:
 				failInTotal += 1
 				print cmnd, ' Failed'
+#			else:
+#				merged_unmapped_bam_fname = outdirname+bam_fname.split('/')[-1].replace('.bam', '.HALFMAPPED.bam')
+#				cmnd = 'samtools merge -f -n '+ merged_unmapped_bam_fname
+#				for unmapped_bam in unmapped_bams:
+#					cmnd += ' '+unmapped_bam.replace('.bam', '.sorted.bam')
+#				cmnd += ' >& '+merged_unmapped_bam_fname.replace('.HALFMAPPED.bam', '.MERGE.LOG')
+#
+#				if verbose: 
+#					print cmnd
+#				fail = os.system(cmnd)
+#				if fail != 0:
+#					failInTotal += 1
+#					print cmnd, ' Failed'
 			else:
-				merged_unmapped_bam_fname = outdirname+bam_fname.split('/')[-1].replace('.bam', '.HALFMAPPED.bam')
-				cmnd = 'samtools merge -f -n '+ merged_unmapped_bam_fname
-				for unmapped_bam in unmapped_bams:
-					cmnd += ' '+unmapped_bam.replace('.bam', '.sorted.bam')
-				cmnd += ' >& '+merged_unmapped_bam_fname.replace('.HALFMAPPED.bam', '.MERGE.LOG')
-
+				cmnd = "bedtools bamtofastq -i "+merged_unmapped_bam_fname
+				cmnd +=' -fq '+merged_unmapped_bam_fname.replace('.bam', '_R1.fastq')
+				cmnd +=' -fq2 '+merged_unmapped_bam_fname.replace('.bam', '_R2.fastq')
+				cmnd +=' >& '+merged_unmapped_bam_fname.replace('.HALFMAPPED.bam', '.BAM2FASTQ.LOG')
 				if verbose: 
 					print cmnd
 				fail = os.system(cmnd)
 				if fail != 0:
 					failInTotal += 1
 					print cmnd, ' Failed'
-				else:
-					cmnd = "bedtools bamtofastq -i "+merged_unmapped_bam_fname
-					cmnd +=' -fq '+merged_unmapped_bam_fname.replace('.bam', '_R1.fastq')
-					cmnd +=' -fq2 '+merged_unmapped_bam_fname.replace('.bam', '_R2.fastq')
-					cmnd +=' >& '+merged_unmapped_bam_fname.replace('.HALFMAPPED.bam', '.BAM2FASTQ.LOG')
-					if verbose: 
-						print cmnd
-					fail = os.system(cmnd)
-					if fail != 0:
-						failInTotal += 1
-						print cmnd, ' Failed'
 
 	print 'Processed ', len(glob.glob(dirname_read_data+'/*.bam')), 'files, of which', failInTotal, 'failed'
 	return failInTotal
@@ -235,9 +235,9 @@ if __name__ == "__main__":
 #
 #		print mapReads(args.donorFasta, trimOutDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
 
-	if can_savely_continue and (args.task == 'extractReadWithUnmappedMate' or args.task == 'all'):
+	if can_savely_continue and (args.task == 'extractUnmappedReadWithMappedMate' or args.task == 'all'):
 		if args.verbose:
-			print '\n\nWill extract reads with unmapped mates from bamfiles in ', readDir
+			print '\n\nWill extract unmapped reads with mapped mates from bamfiles in ', readDir
 
 		unmappedOutDir = args.outDir+'/03.UnmappedReads/'
 		os.system('mkdir -p '+args.outDir)
