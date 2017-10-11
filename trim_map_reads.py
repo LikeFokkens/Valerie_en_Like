@@ -80,7 +80,7 @@ def mapReads(fasta, dirname_read_data, outdirname, I, X, matePair, nCPU, verbose
 	failInTotal = 0
 	cmnds       = []
 	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*'):
-		fastq_R2 = fastq_R1.replace('/R1/', '/R2/')
+		fastq_R2 = fastq_R1.replace('/R1/', '/R2/').replace('_R1','_R2')
 
 		if verbose:
 			print "Will map reads from", fastq_R1, 'and', fastq_R2, 'to', fasta
@@ -249,13 +249,13 @@ if __name__ == "__main__":
 
 	if can_savely_continue and (args.task == 'map2genome' or args.task == 'all'):
 		if args.verbose:
-			print '\n\nWill map reads in', readDir, 'to', args.genomeFasta
+			print '\n\nWill map reads in', readDir, 'to', args.refName
 		mapOutDir = args.outDir+'/04.MappingToGenome/'
 		os.system('mkdir -p '+args.outDir)
 		os.system('mkdir -p '+mapOutDir)
 
-		if len(glob.glob(args.genomeFasta+'*.bt2')) == 0:
-			os.system('bowtie2-build '+args.genomeFasta+' '+args.genomeFasta)
+		if len(glob.glob(args.refName+'*.bt2')) == 0:
+			os.system('bowtie2-build '+args.refName+' '+args.refName)
 
-		print mapReads(args.genomeFasta, readDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
+		print mapReads(args.refName, readDir, mapOutDir, args.minInsertSize, args.maxInsertSize, args.isMatePair, args.nCPU, args.verbose)
 			
