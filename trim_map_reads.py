@@ -147,20 +147,41 @@ def extractMappedReads(dirname_read_data, outdirname, verbose):
 					print 'Command failed, skipping....'
 				else:
 					mapped_bams.append(mapped_bam)
-
 		if fail != 0:
 			failInTotal += 1
 		else:
-			cmnd = "bedtools bamtofastq -i "+mapped_bam
-			cmnd +=' -fq '+mapped_bam.replace('.bam', '_R1.fastq')
-			cmnd +=' -fq2 '+mapped_bam.replace('.bam', '_R2.fastq')
-			cmnd +=' >& '+mapped_bam.replace('.bam', '.BAM2FASTQ.LOG')
-			if verbose: 
-				print cmnd
-			fail = os.system(cmnd)
+			print '\n\nSort 3 classes of mapped reads and merge into a single file...'
+			for mapped_bam in mapped_bams:
+				cmnd = 'samtools sort -n '+mapped_bam+' '+mapped_bam.replace('.bam', '.sorted')
+				fail += os.system(cmnd)
 			if fail != 0:
 				failInTotal += 1
 				print cmnd, ' Failed'
+			else:
+				merged_mapped_bam_fname = outdirname+bam_fname.split('/')[-1].replace('.bam', '.MAPPED.bam')
+				cmnd = 'samtools merge -f -n '+ merged_mapped_bam_fname
+				for mapped_bam in mapped_bams:
+					cmnd += ' '+mapped_bam.replace('.bam', '.sorted.bam')
+				cmnd += ' >& '+merged_mapped_bam_fname.replace('.MAPPED.bam', '.MERGE.LOG')
+
+				if verbose: 
+					print cmnd
+				fail = os.system(cmnd)
+				if fail != 0:
+					failInTotal += 1
+					print cmnd, ' Failed'
+
+				else:
+					cmnd = "bedtools bamtofastq -i "+merged_mapped_bam_fname
+					cmnd +=' -fq '+merged_mapped_bam_fname.replace('.bam', '_R1.fastq')
+					cmnd +=' -fq2 '+merged_mapped_bam_fname.replace('.bam', '_R2.fastq')
+					cmnd +=' >& '+merged_mapped_bam_fname.replace('.bam', '.BAM2FASTQ.LOG')
+					if verbose: 
+						print cmnd
+					fail = os.system(cmnd)
+					if fail != 0:
+						failInTotal += 1
+						print cmnd, ' Failed'
 
 	print 'Processed ', len(glob.glob(dirname_read_data+'/*.bam')), 'files, of which', failInTotal, 'failed'
 	return failInTotal
