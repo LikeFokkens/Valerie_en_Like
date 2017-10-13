@@ -40,8 +40,8 @@ def trim(trimmer, adapterfasta, dirname_read_data, outdirname, verbose):
 	for fastq_R1 in glob.glob(dirname_read_data+'/R1/*'):
 
 		fastq_R2   = fastq_R1.replace('/R1/', '/R2/').replace('_R1','_R2')
-		trimmed_R1 = outdirname+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
-		trimmed_R2 = outdirname+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
+		trimmed_R1 = outdirname+'/R1/'+fastq_R1.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
+		trimmed_R2 = outdirname+'/R2/'+fastq_R2.split('/')[-1].replace('.fastq', '.trimmed_fastq-mcf_q20.fastq').replace('.fq', '.trimmed_fastq-mcf_q20.fq')
 
 		if verbose:
 			print fastq_R1
@@ -135,24 +135,23 @@ def extractMappedReads(dirname_read_data, outdirname, verbose):
 			fail = os.system(cmnd)
 			if fail != 0:
 				print 'Command failed, skipping....'
+#				mapped_bams.append(mapped_bam)
+#				mapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.both_mapped.bam')
+#				cmnd   = 'samtools view -b -F 12 '+bam_fname+' > '+ mapped_bam 
+#				if verbose:
+#					print '\nExtract mapped reads for '+bam_fname+':'
+#					print cmnd
+#				fail = os.system(cmnd)
+#				if fail != 0:
+#					print 'Command failed, skipping....'
 			else:
 				mapped_bams.append(mapped_bam)
-				mapped_bam = outdirname+bam_fname.split('/')[-1].replace('.bam', '.both_mapped.bam')
-				cmnd   = 'samtools view -b -F 12 '+bam_fname+' > '+ mapped_bam 
-				if verbose:
-					print '\nExtract mapped reads for '+bam_fname+':'
-					print cmnd
-				fail = os.system(cmnd)
-				if fail != 0:
-					print 'Command failed, skipping....'
-				else:
-					mapped_bams.append(mapped_bam)
 		if fail != 0:
 			failInTotal += 1
 		else:
-			print '\n\nSort 3 classes of mapped reads and merge into a single file...'
+			print '\n\nSort 2 classes of mapped reads and merge into a single file...'
 			for mapped_bam in mapped_bams:
-				cmnd = 'samtools sort -n '+mapped_bam+' -o '+mapped_bam.replace('.bam', '.sorted')
+				cmnd = 'samtools sort -n '+mapped_bam+' -o '+mapped_bam.replace('.bam', '.sorted.bam')
 				fail += os.system(cmnd)
 			if fail != 0:
 				failInTotal += 1
@@ -161,7 +160,7 @@ def extractMappedReads(dirname_read_data, outdirname, verbose):
 				merged_mapped_bam_fname = outdirname+bam_fname.split('/')[-1].replace('.bam', '.MAPPED.bam')
 				cmnd = 'samtools merge -f -n '+ merged_mapped_bam_fname
 				for mapped_bam in mapped_bams:
-					cmnd += ' '+mapped_bam.replace('.bam', '.sorted')
+					cmnd += ' '+mapped_bam.replace('.bam', '.sorted.bam')
 				cmnd += ' >& '+merged_mapped_bam_fname.replace('.MAPPED.bam', '.MERGE.LOG')
 
 				if verbose: 
